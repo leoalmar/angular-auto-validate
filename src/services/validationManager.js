@@ -8,7 +8,7 @@ function ElementUtilsFn() {
   };
 }
 
-function ValidationManagerFn(validator, elementUtils) {
+function ValidationManagerFn(validator, elementUtils, $anchorScroll) {
   var elementTypesToValidate = ['input', 'textarea', 'select', 'form'],
 
     elementIsVisible = function (el) {
@@ -91,7 +91,7 @@ function ValidationManagerFn(validator, elementUtils) {
 
       if (frmOptions.disabled === false) {
         if ((frmOptions.forceValidation ||
-            (shouldValidateElement(el, frmOptions, frmOptions.formController.$submitted) &&
+            (shouldValidateElement(el, frmOptions, frmOptions.getFormController().$submitted) &&
               modelCtrl &&
               needsValidation))) {
           isValid = !modelCtrl.$invalid;
@@ -100,18 +100,23 @@ function ValidationManagerFn(validator, elementUtils) {
             modelCtrl.removeAllExternalValidation();
           }
 
-          if (isValid) {
-            validator.makeValid(el);
+          if (modelCtrl.$pending !== undefined && options.waitForAsyncValidators === true) {
+            // we have pending async validators
+            validator.waitForAsyncValidators(el);
           } else {
-            errorType = findErrorType(modelCtrl.$errors || modelCtrl.$error);
-            if (errorType === undefined) {
-              // we have a weird situation some users are encountering where a custom control
-              // is valid but the ngModel is report it isn't and thus no valid error type can be found
-              isValid = true;
+            if (isValid) {
+              validator.makeValid(el);
             } else {
-              validator.getErrorMessage(errorType, el).then(function (errorMsg) {
-                validator.makeInvalid(el, errorMsg);
-              });
+              errorType = findErrorType(modelCtrl.$errors || modelCtrl.$error);
+              if (errorType === undefined) {
+                // we have a weird situation some users are encountering where a custom control
+                // is valid but the ngModel is report it isn't and thus no valid error type can be found
+                isValid = true;
+              } else {
+                validator.getErrorMessage(errorType, el).then(function (errorMsg) {
+                  validator.makeInvalid(el, errorMsg);
+                });
+              }
             }
           }
         }
@@ -162,6 +167,12 @@ function ValidationManagerFn(validator, elementUtils) {
               ctrlFormOptions.forceValidation = force;
               try {
                 isValid = validateElement(controller, ctrlElement, ctrlFormOptions);
+                if (validator.firstInvalidElementScrollingOnSubmitEnabled() && !isValid && frmValid) {
+                  var ctrlElementId = ctrlElement.attr('id');
+                  if (ctrlElementId) {
+                    $anchorScroll(ctrlElementId);
+                  }
+                }
                 frmValid = frmValid && isValid;
               } finally {
                 ctrlFormOptions.forceValidation = originalForceValue;
@@ -181,7 +192,7 @@ function ValidationManagerFn(validator, elementUtils) {
 
       // IE8 holds the child controls collection in the all property
       // Firefox in the elements and chrome as a child iterator
-      angular.forEach((frmElement[0].all || frmElement[0].elements) || frmElement[0], function (ctrlElement) {
+      angular.forEach((frmElement[0].elements || frmElement[0].all) || frmElement[0], function (ctrlElement) {
         processElement(ctrlElement, true, clonedOptions);
       });
 
@@ -223,7 +234,8 @@ function ValidationManagerFn(validator, elementUtils) {
 
 ValidationManagerFn.$inject = [
   'validator',
-  'jcs-elementUtils'
+  'jcs-elementUtils',
+  '$anchorScroll'
 ];
 
 angular.module('jcs-autoValidate').factory('jcs-elementUtils', ElementUtilsFn);

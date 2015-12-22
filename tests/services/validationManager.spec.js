@@ -2,7 +2,7 @@
   'use strict';
 
   describe('jcs-autoValidate validationManager', function () {
-    var sandbox, $rootScope, $compile, $q, validator, validationManager, modelCtrl, defer, elementUtils,
+    var sandbox, $rootScope, $compile, $q, validator, validationManager, modelCtrl, defer, elementUtils, $anchorScroll,
       setModelCtrl = function () {
         modelCtrl = {
           $parsers: [],
@@ -19,20 +19,31 @@
         return element;
       },
       getDefaultFormOptions = function () {
+        var internalFormController = {};
         return {
           forceValidation: false,
           disabled: false,
           validateNonVisibleControls: false,
           validateOnFormSubmit: false,
-          formController: {}
+          internalFormController: internalFormController,
+          getFormController: function () {
+            return internalFormController;
+          }
         };
       };
 
     beforeEach(module('jcs-autoValidate'));
 
     describe('validationManager', function () {
-      beforeEach(inject(function ($injector) {
+      beforeEach(function () {
         sandbox = sinon.sandbox.create();
+      });
+
+      beforeEach(module('jcs-autoValidate', function ($provide) {
+        $provide.value('$anchorScroll', sandbox.stub());
+      }));
+
+      beforeEach(inject(function ($injector) {
         $rootScope = $injector.get('$rootScope');
         $compile = $injector.get('$compile');
         $q = $injector.get('$q');
@@ -40,6 +51,7 @@
         validator = $injector.get('validator');
         validationManager = $injector.get('validationManager');
         elementUtils = $injector.get('jcs-elementUtils');
+        $anchorScroll = $injector.get('$anchorScroll');
 
         sandbox.stub(validator, 'makeValid');
         sandbox.stub(validator, 'makeInvalid');
@@ -144,7 +156,7 @@
             result;
 
           var formOptions = getDefaultFormOptions();
-          formOptions.formController.$submitted = false;
+          formOptions.internalFormController.$submitted = false;
           formOptions.validateOnFormSubmit = true;
 
           sandbox.stub(elementUtils, 'isElementVisible').returns(true);
@@ -161,7 +173,7 @@
             result;
 
           var formOptions = getDefaultFormOptions();
-          formOptions.formController.$submitted = true;
+          formOptions.internalFormController.$submitted = true;
           formOptions.validateOnFormSubmit = true;
 
           sandbox.stub(elementUtils, 'isElementVisible').returns(true);
@@ -434,6 +446,75 @@
           $rootScope.$apply();
 
           expect(validator.makeInvalid.calledOnce).to.equal(true);
+        });
+
+        it('should call $anchorScroll to first invalid element when the option is disabled', function () {
+          var frm = compileElement('<form name="frm1" ng-submit=""></form>', true),
+            inpt = compileElement('<input type="text" ng-model="name" required="required" ng-minlength="2" />', true);
+
+
+          sandbox.stub(elementUtils, 'isElementVisible').returns(true);
+          sandbox.stub(validator, 'firstInvalidElementScrollingOnSubmitEnabled').returns(false);
+          frm.append(inpt);
+          $rootScope.$apply();
+
+          frm.on('submit', function (event) {
+            event.preventDefault();
+          });
+
+          defer.resolve('errorMsg');
+          frm.trigger('submit');
+
+          $rootScope.$apply();
+
+          expect($anchorScroll.notCalled).to.equal(true);
+        });
+
+        it('should call $anchorScroll with first invalid element id when the option is enabled', function () {
+          var frm = compileElement('<form name="frm1" ng-submit=""></form>', true),
+            firstInpt = compileElement('<input type="text" id="first" ng-model="name" required="required" ng-minlength="2" />', true),
+            secondInpt = compileElement('<input type="text" id="second" ng-model="description" required="required" ng-minlength="2" />', true);
+
+
+          sandbox.stub(elementUtils, 'isElementVisible').returns(true);
+          sandbox.stub(validator, 'firstInvalidElementScrollingOnSubmitEnabled').returns(true);
+          frm.append(firstInpt);
+          frm.append(secondInpt);
+          $rootScope.$apply();
+
+          frm.on('submit', function (event) {
+            event.preventDefault();
+          });
+
+          defer.resolve('errorMsg');
+          frm.trigger('submit');
+
+          $rootScope.$apply();
+
+          expect($anchorScroll.calledOnce).to.equal(true);
+          expect($anchorScroll.calledWith('first')).to.equal(true);
+        });
+
+        it('should not call $anchorScroll with an undefined id', function () {
+          var frm = compileElement('<form name="frm1" ng-submit=""></form>', true),
+            firstInpt = compileElement('<input type="text" ng-model="name" required="required" ng-minlength="2" />', true);
+
+
+          sandbox.stub(elementUtils, 'isElementVisible').returns(true);
+          sandbox.stub(validator, 'firstInvalidElementScrollingOnSubmitEnabled').returns(true);
+          frm.append(firstInpt);
+          $rootScope.$apply();
+
+          frm.on('submit', function (event) {
+            event.preventDefault();
+          });
+
+          defer.resolve('errorMsg');
+          frm.trigger('submit');
+
+          $rootScope.$apply();
+
+          expect($anchorScroll.notCalled).to.equal(true);
         });
       });
 

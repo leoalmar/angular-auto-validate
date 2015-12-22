@@ -1,3 +1,26 @@
+v1.19.3 30/11/2015
+Fixed a problem with ng-model-options updateOn blur/default with debounce not validating - a bit of a tricky problem!
+
+v1.19.2 30/11/2015
+Added ability for the library to delay showing validation hints on an element while async validators are firing.
+This functionality is enabled by default - to disbale it change the 'waitForAsyncValidators' option in the defaultFormValidationOptions
+on the validation provider. Or on a per form basis by adding the attribute wait-for-async-validators="true|false" on
+a form. See http://plnkr.co/edit/3YXEQAU051N4gFCRPi7S?p=preview for a demo.
+
+v1.19.1 16/11/2015
+Fixed problem with the de-bounce function in the ngModel decorator.
+Option added to the validator service to automatically scroll to the first invalid input.
+
+v1.19.0 25/10/2015
+Possible breaking change fixing i18n caching issue with en-us and en-gb files.  The default language
+is now 'default' and not en-gb.
+New Turkish translation.
+Updated German translation
+IE10 speed improvement when validating a form.
+The BS3 modifier no longer adds the has-feedback class if state icons are not enabled.
+Fixed issue when serialising the form controller to json
+You can now add the attribute disable-auto-validate="true" to an element and it won't validate.
+
 v1.18.17 2/09/2015
 Added pt-pt and zh-tw lang files
 

@@ -2,6 +2,7 @@ function ValidatorFn() {
   var elementStateModifiers = {},
     enableValidElementStyling = true,
     enableInvalidElementStyling = true,
+    enableFirstInvalidElementScrollingOnSubmit = false,
     validationEnabled = true,
 
     toBoolean = function (value) {
@@ -42,6 +43,10 @@ function ValidatorFn() {
 
     validElementStylingEnabled = function (el) {
       return enableValidElementStyling && !getBooleanAttributeValue(el, 'disable-valid-styling');
+    },
+
+    autoValidateEnabledOnControl = function (el) {
+      return !getBooleanAttributeValue(el, 'disable-auto-validate');
     },
 
     invalidElementStylingEnabled = function (el) {
@@ -232,6 +237,25 @@ function ValidatorFn() {
     enableInvalidElementStyling = enabled;
   };
 
+  /**
+   * @ngdoc function
+   * @name validator#setFirstInvalidElementScrollingOnSubmit
+   * @methodOf validator
+   *
+   * @description
+   * Globally enables first invalid element scrolling on form submit. This is disabled by default.
+   *
+   * @param enabled {Boolean} enabled True to enable scrolling otherwise false.
+   */
+  this.setFirstInvalidElementScrollingOnSubmit = function (enabled) {
+    enableFirstInvalidElementScrollingOnSubmit = enabled;
+  };
+
+  this.firstInvalidElementScrollingOnSubmitEnabled = function () {
+    return enableFirstInvalidElementScrollingOnSubmit;
+  };
+
+
   this.getDomModifier = function (el) {
     var modifierKey = (el !== undefined ? el.attr('element-modifier') : this.defaultElementModifier) ||
       (el !== undefined ? el.attr('data-element-modifier') : this.defaultElementModifier) ||
@@ -245,25 +269,40 @@ function ValidatorFn() {
   };
 
   this.makeValid = function (el) {
-    if (validElementStylingEnabled(el)) {
-      this.getDomModifier(el).makeValid(el);
-    } else {
-      this.makeDefault(el);
+    if (autoValidateEnabledOnControl(el)) {
+      if (validElementStylingEnabled(el)) {
+        this.getDomModifier(el).makeValid(el);
+      } else {
+        this.makeDefault(el);
+      }
     }
   };
 
   this.makeInvalid = function (el, errorMsg) {
-    if (invalidElementStylingEnabled(el)) {
-      this.getDomModifier(el).makeInvalid(el, errorMsg);
-    } else {
-      this.makeDefault(el);
+    if (autoValidateEnabledOnControl(el)) {
+      if (invalidElementStylingEnabled(el)) {
+        this.getDomModifier(el).makeInvalid(el, errorMsg);
+      } else {
+        this.makeDefault(el);
+      }
     }
   };
 
   this.makeDefault = function (el) {
-    var dm = this.getDomModifier(el);
-    if (dm.makeDefault) {
-      dm.makeDefault(el);
+    if (autoValidateEnabledOnControl(el)) {
+      var dm = this.getDomModifier(el);
+      if (dm.makeDefault) {
+        dm.makeDefault(el);
+      }
+    }
+  };
+
+  this.waitForAsyncValidators = function (el) {
+    if (autoValidateEnabledOnControl(el)) {
+      var dm = this.getDomModifier(el);
+      if (dm.waitForAsyncValidators) {
+        dm.waitForAsyncValidators(el);
+      }
     }
   };
 
@@ -272,7 +311,8 @@ function ValidatorFn() {
     disabled: false,
     validateNonVisibleControls: false,
     removeExternalValidationErrorsOnSubmit: true,
-    validateOnFormSubmit: false
+    validateOnFormSubmit: false,
+    waitForAsyncValidators: true
   };
 
   this.$get = [
